@@ -88,7 +88,13 @@ class ACMOJClient:
         result = self._make_request("POST", f"/problem/{problem_id}/submit", data=data)
         if result and 'id' in result:
             self._save_submission_id(result['id'])
+        return result
 
+    def submit_code(self, problem_id: int, language: str, code: str) -> Optional[Dict]:
+        data = {"language": language, "code": code}
+        result = self._make_request("POST", f"/problem/{problem_id}/submit", data=data)
+        if result and 'id' in result:
+            self._save_submission_id(result['id'])
         return result
 
     def get_submission_detail(self, submission_id: int) -> Optional[Dict]:
@@ -130,17 +136,21 @@ def main():
     client = ACMOJClient(args.token)
 
     if args.command == "submit":
-        try:
-            with open(args.code_file, 'r', encoding='utf-8') as f:
-                code_text = f.read()
-        except FileNotFoundError:
-            print(f"Error: Code file not found at {args.code_file}")
-            exit(1)
-        except Exception as e:
-            print(f"Error: Failed to read code file: {e}")
-            exit(1)
-
-        result = client.submit_code(args.problem_id, args.language, code_text)
+        code_file = args.code_file
+        if code_file.startswith("http://") or code_file.startswith("https://"):
+            # Git URL submission
+            result = client.submit_git(args.problem_id, code_file)
+        else:
+            try:
+                with open(code_file, 'r', encoding='utf-8') as f:
+                    code_text = f.read()
+            except FileNotFoundError:
+                print(f"Error: Code file not found at {code_file}")
+                exit(1)
+            except Exception as e:
+                print(f"Error: Failed to read code file: {e}")
+                exit(1)
+            result = client.submit_code(args.problem_id, args.language, code_text)
 
     elif args.command == "status":
         result = client.get_submission_detail(args.submission_id)
